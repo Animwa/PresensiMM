@@ -1,11 +1,12 @@
 // ==========================================
-// GANTI DENGAN URL WEB APP GOOGLE APPS SCRIPT ANDA
+// URL WEB APP GOOGLE APPS SCRIPT ANDA
 // ==========================================
 const API_URL = "https://script.google.com/macros/s/AKfycbzpLfrCmrKH1xKiEyRwBx35F1fGU8WYkvs0mskFnb6V38OE41IDXk2fAiPtaebucum6/exec";
 
 function appData() {
     return {
         loading: true,
+        submitting: false,
         activeTab: 'beranda',
         isAdmin: false,
         logoClickCount: 0,
@@ -20,15 +21,19 @@ function appData() {
         selectedKelompok: '',
         selectedActivity: null,
 
+        monitoringFilterActId: 'all',
+        evalMode: 'kegiatan', // 'kegiatan' atau 'bulan'
+        selectedEvalActivity: 'all',
+        selectedEvalMonth: 'all',
+
         masterWilayah: {},
         activities: [],
         presensiList: [],
 
-        formActivity: { nama: '', waktu: '', tempat: '' },
-        formPresensi: { hadir: 0, izin: 0, alfa: 0 },
+        formActivity: { nama: '', tanggalRaw: '', waktu: '', tempat: '' },
+        formPresensi: { hadir: '', izin: '', alfa: '' },
 
         initData() {
-            // Shortcut Keyboard: Ctrl + Alt + M untuk Login Admin
             window.addEventListener('keydown', (e) => {
                 if (e.ctrlKey && e.altKey && (e.key === 'm' || e.key === 'M')) {
                     e.preventDefault();
@@ -55,12 +60,136 @@ function appData() {
             return (this.selectedDesa && this.masterWilayah[this.selectedDesa]) ? this.masterWilayah[this.selectedDesa] : [];
         },
 
+        get filteredMonitoringActivities() {
+            if (this.monitoringFilterActId === 'all') return this.activities;
+            return this.activities.filter(a => String(a.id) === String(this.monitoringFilterActId));
+        },
+
         getTotalKelompokCount() {
             let total = 0;
             for (let desa in this.masterWilayah) {
                 total += this.masterWilayah[desa].length;
             }
             return total;
+        },
+
+        // Otomatis menghasilkan Nama Hari + Tanggal Indonesia saat admin memilih tanggal
+        updateFormattedDate() {
+            if (!this.formActivity.tanggalRaw) {
+                this.formActivity.waktu = '';
+                return;
+            }
+            const [year, month, day] = this.formActivity.tanggalRaw.split('-').map(Number);
+            const dateObj = new Date(year, month - 1, day);
+            const namaHari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            
+            const hariStr = namaHari[dateObj.getDay()];
+            const bulanStr = namaBulan[dateObj.getMonth()];
+            this.formActivity.waktu = `${hariStr}, ${day} ${bulanStr} ${year}`;
+        },
+
+        // Ekstrak nama Bulan & Tahun dari string waktu kegiatan (misal: "Minggu, 16 November 2026" -> "November 2026")
+        extractMonthYear(waktuStr) {
+            if (!waktuStr) return 'Lainnya';
+            const daftarBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            for (let bln of daftarBulan) {
+                if (waktuStr.includes(bln)) {
+                    const yearMatch = waktuStr.match(/\b20\d{2}\b/);
+                    return yearMatch ? `${bln} ${yearMatch[0]}` : bln;
+                }
+            }
+            return 'Lainnya';
+        },
+
+        get availableMonths() {
+            const setBulan = new Set();
+            this.activities.forEach(act => {
+                setBulan.add(this.extractMonthYear(act.waktu));
+            });
+            return Array.from(setBulan);
+        },
+
+        // Filter data presensi untuk Tab Evaluasi
+        get filteredEvalPresensi() {
+            if (this.evalMode === 'kegiatan') {
+                if (this.selectedEvalActivity === 'all') return this.presensiList;
+                return this.presensiList.filter(p => String(p.kegiatanId) === String(this.selectedEvalActivity));
+            } else {
+                if (this.selectedEvalMonth === 'all') return this.presensiList;
+                const matchingActIds = this.activities
+                    .filter(act => this.extractMonthYear(act.waktu) === this.selectedEvalMonth)
+                    .map(act => String(act.id));
+                return this.presensiList.filter(p => matchingActIds.includes(String(p.kegiatanId)));
+            }
+        },
+
+        // Statistik Total & Persentase untuk Evaluasi
+        get evalStats() {
+            const list = this.filteredEvalPresensi;
+            const hadir = list.reduce((sum, item) => sum + (Number(item.hadir) || 0), 0);
+            const izin = list.reduce((sum, item) => sum + (Number(item.izin) || 0), 0);
+            const alfa = list.reduce((sum, item) => sum + (Number(item.alfa) || 0), 0);
+            const total = hadir + izin + alfa;
+
+            const calcPct = (val) => total > 0 ? ((val / total) * 100).toFixed(1) : '0.0';
+
+            return {
+                hadir,
+                izin,
+                alfa,
+                total,
+                hadirPct: calcPct(hadir),
+                izinPct: calcPct(izin),
+                alfaPct: calcPct(alfa)
+            };
+        },
+
+        // Baris tabel rekapitulasi per kegiatan atau per bulan
+        get evalTableRows() {
+            if (this.evalMode === 'kegiatan') {
+                return this.activities.map(act => {
+                    const records = this.presensiList.filter(p => String(p.kegiatanId) === String(act.id));
+                    const hadir = records.reduce((s, r) => s + (Number(r.hadir) || 0), 0);
+                    const izin = records.reduce((s, r) => s + (Number(r.izin) || 0), 0);
+                    const alfa = records.reduce((s, r) => s + (Number(r.alfa) || 0), 0);
+                    const total = hadir + izin + alfa;
+                    const pct = (v) => total > 0 ? ((v / total) * 100).toFixed(1) : '0.0';
+                    return {
+                        label: `${act.nama} (${act.waktu})`,
+                        kelompokCount: `${records.length} / ${this.getTotalKelompokCount()}`,
+                        hadir, izin, alfa, total,
+                        hadirPct: pct(hadir),
+                        izinPct: pct(izin),
+                        alfaPct: pct(alfa)
+                    };
+                });
+            } else {
+                return this.availableMonths.map(bln => {
+                    const actIds = this.activities
+                        .filter(a => this.extractMonthYear(a.waktu) === bln)
+                        .map(a => String(a.id));
+                    const records = this.presensiList.filter(p => actIds.includes(String(p.kegiatanId)));
+                    const hadir = records.reduce((s, r) => s + (Number(r.hadir) || 0), 0);
+                    const izin = records.reduce((s, r) => s + (Number(r.izin) || 0), 0);
+                    const alfa = records.reduce((s, r) => s + (Number(r.alfa) || 0), 0);
+                    const total = hadir + izin + alfa;
+                    const pct = (v) => total > 0 ? ((v / total) * 100).toFixed(1) : '0.0';
+                    return {
+                        label: bln,
+                        kelompokCount: `${records.length} Laporan`,
+                        hadir, izin, alfa, total,
+                        hadirPct: pct(hadir),
+                        izinPct: pct(izin),
+                        alfaPct: pct(alfa)
+                    };
+                });
+            }
+        },
+
+        switchToEvaluasi() {
+            this.activeTab = 'evaluasi';
+            this.$nextTick(() => this.renderCharts());
         },
 
         async fetchServerData() {
@@ -71,6 +200,9 @@ function appData() {
                 this.masterWilayah = data.masterWilayah || {};
                 this.activities = data.activities || [];
                 this.presensiList = data.presensi || [];
+                if (this.activeTab === 'evaluasi' && this.isAdmin) {
+                    this.$nextTick(() => this.renderCharts());
+                }
             } catch (error) {
                 console.error('Gagal mengambil data:', error);
                 alert('Gagal terhubung ke database Google Sheets.');
@@ -102,28 +234,40 @@ function appData() {
         logoutAdmin() {
             this.isAdmin = false;
             this.activeTab = 'beranda';
-            alert('Anda telah keluar dari mode admin.');
         },
 
         openAddActivityModal() {
-            this.formActivity = { nama: '', waktu: '', tempat: '' };
+            this.formActivity = { nama: '', tanggalRaw: '', waktu: '', tempat: '' };
             this.showAddModal = true;
         },
 
         async saveNewActivity() {
+            if (!this.formActivity.waktu) {
+                this.updateFormattedDate();
+            }
+            this.submitting = true;
             try {
                 let response = await fetch(API_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'addActivity', payload: this.formActivity })
+                    body: JSON.stringify({ 
+                        action: 'addActivity', 
+                        payload: {
+                            nama: this.formActivity.nama,
+                            waktu: this.formActivity.waktu,
+                            tempat: this.formActivity.tempat
+                        } 
+                    })
                 });
                 let result = await response.json();
                 if (result.success) {
                     this.showAddModal = false;
-                    this.fetchServerData();
+                    await this.fetchServerData();
                     alert('Kegiatan berhasil ditambahkan!');
                 }
             } catch (error) {
                 alert('Gagal menyimpan kegiatan.');
+            } finally {
+                this.submitting = false;
             }
         },
 
@@ -131,19 +275,28 @@ function appData() {
             this.selectedActivity = act;
             let existing = this.getPresensiRecord(act.id, this.selectedDesa, this.selectedKelompok);
             if (existing) {
-                this.formPresensi = { hadir: existing.hadir, izin: existing.izin, alfa: existing.alfa };
+                // Jika angka 0, tampilkan kosong agar tidak mengganggu ketikan ulang, kecuali bernilai > 0
+                this.formPresensi = { 
+                    hadir: existing.hadir > 0 ? existing.hadir : '', 
+                    izin: existing.izin > 0 ? existing.izin : '', 
+                    alfa: existing.alfa > 0 ? existing.alfa : '' 
+                };
             } else {
-                this.formPresensi = { hadir: 0, izin: 0, alfa: 0 };
+                // Kosongan (bukan angka 0) saat belum pernah mengisi
+                this.formPresensi = { hadir: '', izin: '', alfa: '' };
             }
             this.showPresensiModal = true;
         },
 
         async submitPresensiData() {
+            this.submitting = true;
             let payload = {
                 kegiatanId: this.selectedActivity.id,
                 desa: this.selectedDesa,
                 kelompok: this.selectedKelompok,
-                ...this.formPresensi
+                hadir: this.formPresensi.hadir === '' ? 0 : Number(this.formPresensi.hadir),
+                izin: this.formPresensi.izin === '' ? 0 : Number(this.formPresensi.izin),
+                alfa: this.formPresensi.alfa === '' ? 0 : Number(this.formPresensi.alfa)
             };
 
             try {
@@ -154,44 +307,62 @@ function appData() {
                 let result = await response.json();
                 if (result.success) {
                     this.showPresensiModal = false;
-                    this.fetchServerData();
-                    alert('Presensi berhasil disimpan!');
+                    await this.fetchServerData();
+                    alert('Presensi berhasil tersimpan!');
                 }
             } catch (error) {
                 alert('Gagal menyimpan presensi.');
+            } finally {
+                this.submitting = false;
             }
         },
 
         getPresensiRecord(kegiatanId, desa, kelompok) {
-            return this.presensiList.find(p => p.kegiatanId === kegiatanId && p.desa === desa && p.kelompok === kelompok);
+            return this.presensiList.find(p => String(p.kegiatanId) === String(kegiatanId) && p.desa === desa && p.kelompok === kelompok);
         },
 
         getFilledCount(kegiatanId) {
-            return this.presensiList.filter(p => p.kegiatanId === kegiatanId).length;
+            return this.presensiList.filter(p => String(p.kegiatanId) === String(kegiatanId)).length;
         },
 
         renderCharts() {
-            let totalHadir = this.presensiList.reduce((acc, curr) => acc + curr.hadir, 0);
-            let totalIzin = this.presensiList.reduce((acc, curr) => acc + curr.izin, 0);
-            let totalAlfa = this.presensiList.reduce((acc, curr) => acc + curr.alfa, 0);
+            const stats = this.evalStats;
+            const list = this.filteredEvalPresensi;
 
+            // 1. Grafik Proporsi Hadir, Izin, Alfa
             const ctx1 = document.getElementById('attendanceChart');
             if (ctx1) {
                 if (window.myAttChart) window.myAttChart.destroy();
                 window.myAttChart = new Chart(ctx1, {
                     type: 'doughnut',
                     data: {
-                        labels: ['Hadir', 'Izin', 'Alfa'],
-                        datasets: [{ data: [totalHadir, totalIzin, totalAlfa], backgroundColor: ['#059669', '#d97706', '#e11d48'] }]
+                        labels: [
+                            `Hadir (${stats.hadirPct}%)`, 
+                            `Izin (${stats.izinPct}%)`, 
+                            `Alfa (${stats.alfaPct}%)`
+                        ],
+                        datasets: [{ 
+                            data: [stats.hadir, stats.izin, stats.alfa], 
+                            backgroundColor: ['#059669', '#f59e0b', '#e11d48'],
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
                     },
-                    options: { responsive: true, maintainAspectRatio: false }
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
                 });
             }
 
-            let desaCounts = {};
-            for (let desa in this.masterWilayah) {
-                desaCounts[desa] = this.presensiList.filter(p => p.desa === desa).length;
-            }
+            // 2. Grafik Stacked Bar Hadir, Izin, Alfa per Desa
+            const desaNames = Object.keys(this.masterWilayah);
+            const dataHadirDesa = desaNames.map(d => list.filter(p => p.desa === d).reduce((s, r) => s + (Number(r.hadir) || 0), 0));
+            const dataIzinDesa = desaNames.map(d => list.filter(p => p.desa === d).reduce((s, r) => s + (Number(r.izin) || 0), 0));
+            const dataAlfaDesa = desaNames.map(d => list.filter(p => p.desa === d).reduce((s, r) => s + (Number(r.alfa) || 0), 0));
 
             const ctx2 = document.getElementById('desaChart');
             if (ctx2) {
@@ -199,10 +370,24 @@ function appData() {
                 window.myDesaChart = new Chart(ctx2, {
                     type: 'bar',
                     data: {
-                        labels: Object.keys(desaCounts),
-                        datasets: [{ label: 'Laporan Masuk', data: Object.values(desaCounts), backgroundColor: '#0d9488' }]
+                        labels: desaNames,
+                        datasets: [
+                            { label: 'Hadir', data: dataHadirDesa, backgroundColor: '#059669', borderRadius: 4 },
+                            { label: 'Izin', data: dataIzinDesa, backgroundColor: '#f59e0b', borderRadius: 4 },
+                            { label: 'Alfa', data: dataAlfaDesa, backgroundColor: '#e11d48', borderRadius: 4 }
+                        ]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        scales: { 
+                            x: { stacked: true },
+                            y: { stacked: true, beginAtZero: true } 
+                        },
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
                 });
             }
         }
