@@ -1,7 +1,7 @@
 // ==========================================
 // URL WEB APP GOOGLE APPS SCRIPT ANDA
 // ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbzpLfrCmrKH1xKiEyRwBx35F1fGU8WYkvs0mskFnb6V38OE41IDXk2fAiPtaebucum6/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyo9oYoJNTAbbgFMzCnIHAc64V8g8Y2herSHjpEcFWLCs_xV3PB8tfKXU_1foBhL7RhHQ/exec";
 
 function appData() {
     return {
@@ -34,6 +34,20 @@ function appData() {
         formPresensi: { hadir: '', izin: '', alfa: '' },
 
         initData() {
+            // Cek status login admin yang tersimpan di localStorage agar tidak perlu login ulang
+            if (localStorage.getItem('kmm_admin_logged_in') === 'true') {
+                this.isAdmin = true;
+            }
+
+            // Pulihkan pilihan Desa & Kelompok terakhir jika ada
+            const savedDesa = localStorage.getItem('kmm_selected_desa');
+            const savedKelompok = localStorage.getItem('kmm_selected_kelompok');
+            if (savedDesa) this.selectedDesa = savedDesa;
+            if (savedKelompok) this.selectedKelompok = savedKelompok;
+
+            this.$watch('selectedDesa', val => localStorage.setItem('kmm_selected_desa', val));
+            this.$watch('selectedKelompok', val => localStorage.setItem('kmm_selected_kelompok', val));
+
             window.addEventListener('keydown', (e) => {
                 if (e.ctrlKey && e.altKey && (e.key === 'm' || e.key === 'M')) {
                     e.preventDefault();
@@ -73,6 +87,29 @@ function appData() {
             return total;
         },
 
+        // Mengonversi format tanggal ISO (2026-11-15T17:00:00.000Z) atau YYYY-MM-DD ke Hari, Tanggal Bulan Tahun
+        formatTanggalIndo(val) {
+            if (!val) return '';
+            const strVal = String(val).trim();
+            
+            // Jika format ISO timestamp atau YYYY-MM-DD
+            if (/^\d{4}-\d{2}-\d{2}/.test(strVal)) {
+                const dateObj = new Date(strVal);
+                if (!isNaN(dateObj.getTime())) {
+                    const namaHari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+                    const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                    
+                    const hariStr = namaHari[dateObj.getDay()];
+                    const tglStr = dateObj.getDate();
+                    const bulanStr = namaBulan[dateObj.getMonth()];
+                    const tahunStr = dateObj.getFullYear();
+                    
+                    return `${hariStr}, ${tglStr} ${bulanStr} ${tahunStr}`;
+                }
+            }
+            return strVal;
+        },
+
         // Otomatis menghasilkan Nama Hari + Tanggal Indonesia saat admin memilih tanggal
         updateFormattedDate() {
             if (!this.formActivity.tanggalRaw) {
@@ -89,7 +126,7 @@ function appData() {
             this.formActivity.waktu = `${hariStr}, ${day} ${bulanStr} ${year}`;
         },
 
-        // Ekstrak nama Bulan & Tahun dari string waktu kegiatan (misal: "Minggu, 16 November 2026" -> "November 2026")
+        // Ekstrak nama Bulan & Tahun dari string waktu kegiatan
         extractMonthYear(waktuStr) {
             if (!waktuStr) return 'Lainnya';
             const daftarBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -198,7 +235,13 @@ function appData() {
                 let response = await fetch(`${API_URL}?action=getData`);
                 let data = await response.json();
                 this.masterWilayah = data.masterWilayah || {};
-                this.activities = data.activities || [];
+                
+                // Format waktu agar selalu tampil Hari, Tanggal Bulan Tahun
+                this.activities = (data.activities || []).map(act => ({
+                    ...act,
+                    waktu: this.formatTanggalIndo(act.waktu)
+                }));
+                
                 this.presensiList = data.presensi || [];
                 if (this.activeTab === 'evaluasi' && this.isAdmin) {
                     this.$nextTick(() => this.renderCharts());
@@ -220,6 +263,8 @@ function appData() {
                 let result = await response.json();
                 if (result.isValid) {
                     this.isAdmin = true;
+                    // Simpan status login agar tidak perlu selalu login ulang
+                    localStorage.setItem('kmm_admin_logged_in', 'true');
                     this.showLoginModal = false;
                     this.adminPasswordInput = '';
                     alert('Login Admin Berhasil!');
@@ -233,6 +278,7 @@ function appData() {
 
         logoutAdmin() {
             this.isAdmin = false;
+            localStorage.removeItem('kmm_admin_logged_in');
             this.activeTab = 'beranda';
         },
 
@@ -275,14 +321,12 @@ function appData() {
             this.selectedActivity = act;
             let existing = this.getPresensiRecord(act.id, this.selectedDesa, this.selectedKelompok);
             if (existing) {
-                // Jika angka 0, tampilkan kosong agar tidak mengganggu ketikan ulang, kecuali bernilai > 0
                 this.formPresensi = { 
                     hadir: existing.hadir > 0 ? existing.hadir : '', 
                     izin: existing.izin > 0 ? existing.izin : '', 
                     alfa: existing.alfa > 0 ? existing.alfa : '' 
                 };
             } else {
-                // Kosongan (bukan angka 0) saat belum pernah mengisi
                 this.formPresensi = { hadir: '', izin: '', alfa: '' };
             }
             this.showPresensiModal = true;
@@ -329,7 +373,6 @@ function appData() {
             const stats = this.evalStats;
             const list = this.filteredEvalPresensi;
 
-            // 1. Grafik Proporsi Hadir, Izin, Alfa
             const ctx1 = document.getElementById('attendanceChart');
             if (ctx1) {
                 if (window.myAttChart) window.myAttChart.destroy();
@@ -358,7 +401,6 @@ function appData() {
                 });
             }
 
-            // 2. Grafik Stacked Bar Hadir, Izin, Alfa per Desa
             const desaNames = Object.keys(this.masterWilayah);
             const dataHadirDesa = desaNames.map(d => list.filter(p => p.desa === d).reduce((s, r) => s + (Number(r.hadir) || 0), 0));
             const dataIzinDesa = desaNames.map(d => list.filter(p => p.desa === d).reduce((s, r) => s + (Number(r.izin) || 0), 0));
