@@ -1,49 +1,65 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sistem Presensi & Monitoring Kegiatan</title>
+    <link rel="icon" type="image/jpeg" href="logokmm.jpeg">
+    <link rel="apple-touch-icon" href="logokmm.jpeg">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Alpine.js CDN -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Google Fonts Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Fonts Plus Jakarta Sans -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Hilangkan panah default pada input number agar bersih */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col select-none" x-data="appData()" x-init="initData()">
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col select-none pb-20 md:pb-0" x-data="appData()" x-init="initData()">
 
     <!-- Header & Navbar Utama -->
-    <header class="bg-emerald-700 text-white shadow-md sticky top-0 z-30">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+    <header class="bg-emerald-900 text-white shadow-lg sticky top-0 z-30 border-b border-emerald-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex justify-between items-center gap-3">
             
-            <!-- Logo / Trigger Hidden Admin (5x Klik) -->
-            <div class="flex items-center space-x-3 cursor-pointer" @click="handleLogoClick()">
-                <div class="bg-emerald-800 p-2 rounded-lg">
-                    <svg class="w-6 h-6 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                    </svg>
-                </div>
+            <!-- Logo Tanpa Kotak / Trigger Hidden Admin (5x Klik) -->
+            <div class="flex items-center gap-3 cursor-pointer group" @click="handleLogoClick()">
+                <img src="logokmm.jpeg" alt="Logo KMM" class="w-10 h-10 sm:w-11 sm:h-11 object-contain drop-shadow-md group-active:scale-95 transition-transform">
                 <div>
-                    <h1 class="text-xl font-bold tracking-wide">Sistem Presensi & Monitoring</h1>
-                    <p class="text-xs text-emerald-200">Panel Terintegrasi Wilayah</p>
+                    <h1 class="text-base sm:text-xl font-extrabold tracking-tight leading-tight">Sistem Presensi & Monitoring</h1>
+                    <p class="text-[11px] sm:text-xs text-emerald-300 font-medium">KMM Daerah Karanganyar Barat</p>
                 </div>
             </div>
 
             <!-- Tombol Status Admin -->
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
+                <button @click="fetchServerData()" title="Segarkan Data" class="p-2 rounded-xl bg-emerald-800/80 hover:bg-emerald-700 text-emerald-100 transition active:scale-95">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" :class="loading ? 'animate-spin' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                </button>
+
                 <template x-if="isAdmin">
                     <div class="flex items-center gap-2">
-                        <span class="bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm animate-pulse">MODE ADMIN AKTIF</span>
-                        <button @click="openAddActivityModal()" class="bg-white text-emerald-800 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-xs font-semibold shadow transition">
-                            + Tambah Kegiatan
+                        <span class="hidden sm:inline-flex bg-amber-400 text-emerald-950 text-[11px] font-extrabold px-2.5 py-1 rounded-full shadow-sm">ADMIN</span>
+                        <button @click="openAddActivityModal()" class="bg-amber-400 hover:bg-amber-300 text-emerald-950 px-3 py-2 rounded-xl text-xs font-bold shadow transition active:scale-95 flex items-center gap-1">
+                            <span>+ Kegiatan</span>
                         </button>
-                        <button @click="logoutAdmin()" class="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+                        <button @click="logoutAdmin()" class="bg-rose-600 hover:bg-rose-500 text-white px-2.5 py-2 rounded-xl text-xs font-semibold transition active:scale-95">
                             Keluar
                         </button>
                     </div>
@@ -51,23 +67,23 @@
             </div>
         </div>
 
-        <!-- Navbar Menu -->
-        <div class="bg-emerald-800/80 border-t border-emerald-600/50">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-1 sm:space-x-4">
+        <!-- Navbar Desktop (Tersembunyi di Mobile, Diganti Bottom Nav) -->
+        <div class="hidden md:block bg-emerald-950/60 border-t border-emerald-800/80">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-2">
                 <button @click="activeTab = 'beranda'" 
-                    :class="activeTab === 'beranda' ? 'border-b-4 border-white text-white font-bold bg-emerald-900/40' : 'text-emerald-200 hover:text-white'"
-                    class="py-3 px-5 text-sm sm:text-base transition">
+                    :class="activeTab === 'beranda' ? 'border-b-2 border-amber-400 text-amber-300 font-bold bg-emerald-900/50' : 'text-emerald-200 hover:text-white'"
+                    class="py-3 px-5 text-sm transition">
                     Beranda & Presensi
                 </button>
                 <button @click="activeTab = 'monitoring'" 
-                    :class="activeTab === 'monitoring' ? 'border-b-4 border-white text-white font-bold bg-emerald-900/40' : 'text-emerald-200 hover:text-white'"
-                    class="py-3 px-5 text-sm sm:text-base transition">
+                    :class="activeTab === 'monitoring' ? 'border-b-2 border-amber-400 text-amber-300 font-bold bg-emerald-900/50' : 'text-emerald-200 hover:text-white'"
+                    class="py-3 px-5 text-sm transition">
                     Monitoring Kegiatan
                 </button>
                 <template x-if="isAdmin">
-                    <button @click="activeTab = 'evaluasi'; $nextTick(() => renderCharts());" 
-                        :class="activeTab === 'evaluasi' ? 'border-b-4 border-white text-white font-bold bg-emerald-900/40' : 'text-emerald-200 hover:text-white'"
-                        class="py-3 px-5 text-sm sm:text-base transition flex items-center gap-1.5">
+                    <button @click="switchToEvaluasi()" 
+                        :class="activeTab === 'evaluasi' ? 'border-b-2 border-amber-400 text-amber-300 font-bold bg-emerald-900/50' : 'text-emerald-200 hover:text-white'"
+                        class="py-3 px-5 text-sm transition flex items-center gap-1.5">
                         Evaluasi & Grafik
                     </button>
                 </template>
@@ -76,24 +92,36 @@
     </header>
 
     <!-- Konten Utama -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-8 flex-grow w-full">
 
         <!-- Loading State -->
-        <div x-show="loading" class="text-center py-16">
-            <p class="text-slate-500 text-sm animate-pulse">Memuat data dari Google Sheets...</p>
+        <div x-show="loading" class="flex flex-col items-center justify-center py-20 space-y-3">
+            <div class="w-10 h-10 border-4 border-emerald-200 border-t-emerald-700 rounded-full animate-spin"></div>
+            <p class="text-slate-500 text-sm font-medium">Menyinkronkan data dari server...</p>
         </div>
 
         <!-- TAB 1: BERANDA & PRESENSI -->
         <div x-show="!loading && activeTab === 'beranda'" class="space-y-6">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h2 class="text-xl font-bold text-slate-900 mb-1">Daftar Kegiatan Aktif</h2>
-                <p class="text-sm text-slate-500 mb-6">Pilih wilayah desa dan kelompok Anda, lalu isi presensi pada kegiatan yang tersedia.</p>
-
-                <!-- Filter Wilayah Kelompok -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 mb-8">
+            
+            <!-- Card Filter Wilayah -->
+            <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200/90">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase mb-1.5">Pilih Desa</label>
-                        <select x-model="selectedDesa" @change="selectedKelompok = ''" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <h2 class="text-lg sm:text-xl font-extrabold text-slate-900">Identitas Wilayah Kelompok</h2>
+                        <p class="text-xs sm:text-sm text-slate-500">Pilih Desa dan Kelompok untuk melihat status serta mengisi presensi.</p>
+                    </div>
+                    <template x-if="selectedDesa && selectedKelompok">
+                        <div class="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 px-3.5 py-1.5 rounded-xl text-xs font-bold">
+                            <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+                            <span x-text="selectedDesa + ' — ' + selectedKelompok"></span>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Pilih Desa</label>
+                        <select x-model="selectedDesa" @change="selectedKelompok = ''" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium bg-white focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none transition">
                             <option value="">-- Pilih Desa --</option>
                             <template x-for="(kelompokList, desaName) in masterWilayah" :key="desaName">
                                 <option :value="desaName" x-text="desaName"></option>
@@ -101,8 +129,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-700 uppercase mb-1.5">Pilih Kelompok</label>
-                        <select x-model="selectedKelompok" :disabled="!selectedDesa" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-400">
+                        <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">Pilih Kelompok</label>
+                        <select x-model="selectedKelompok" :disabled="!selectedDesa" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-medium bg-white focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 outline-none disabled:bg-slate-100 disabled:text-slate-400 transition">
                             <option value="">-- Pilih Kelompok --</option>
                             <template x-for="kel in availableKelompok" :key="kel">
                                 <option :value="kel" x-text="kel"></option>
@@ -110,29 +138,98 @@
                         </select>
                     </div>
                 </div>
+            </div>
 
-                <!-- Kartu Kegiatan -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Daftar Kartu Kegiatan -->
+            <div>
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-base sm:text-lg font-extrabold text-slate-900">Daftar Kegiatan</h3>
+                    <span class="text-xs font-semibold text-slate-500 bg-slate-200/70 px-2.5 py-1 rounded-lg" x-text="activities.length + ' Kegiatan'"></span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     <template x-for="act in activities" :key="act.id">
-                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition flex flex-col justify-between overflow-hidden">
-                            <div class="p-5 border-b border-slate-100">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-bold uppercase tracking-wide bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded border border-emerald-200" x-text="act.tempat"></span>
-                                    <span class="text-xs text-slate-500 flex items-center gap-1" x-text="act.waktu"></span>
+                        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-emerald-300 hover:shadow-md transition flex flex-col justify-between overflow-hidden">
+                            
+                            <div class="p-5 space-y-3">
+                                <!-- Baris Atas: Tempat & Status Pengisian Kelompok -->
+                                <div class="flex items-start justify-between gap-2">
+                                    <span class="text-[11px] font-bold uppercase tracking-wide bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg border border-emerald-200/80" x-text="act.tempat"></span>
+                                    
+                                    <!-- Badge Status Dinamis -->
+                                    <template x-if="selectedDesa && selectedKelompok">
+                                        <div>
+                                            <template x-if="getPresensiRecord(act.id, selectedDesa, selectedKelompok)">
+                                                <span class="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full">
+                                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                                    Tersimpan
+                                                </span>
+                                            </template>
+                                            <template x-if="!getPresensiRecord(act.id, selectedDesa, selectedKelompok)">
+                                                <span class="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                                    Belum Mengisi
+                                                </span>
+                                            </template>
+                                        </div>
+                                    </template>
                                 </div>
-                                <h3 class="text-lg font-bold text-slate-800 mb-1" x-text="act.nama"></h3>
+
+                                <!-- Judul Kegiatan -->
+                                <h4 class="text-base sm:text-lg font-extrabold text-slate-900 leading-snug" x-text="act.nama"></h4>
+
+                                <!-- Hari & Tanggal -->
+                                <div class="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                                    <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    <span x-text="act.waktu"></span>
+                                </div>
+
+                                <!-- Box Identitas Kelompok Terpilih -->
+                                <div class="pt-2 border-t border-slate-100">
+                                    <template x-if="selectedDesa && selectedKelompok">
+                                        <div class="bg-slate-50 rounded-xl p-3 border border-slate-200/70 space-y-1.5">
+                                            <div class="flex items-center justify-between text-xs">
+                                                <span class="text-slate-500">Target Isian:</span>
+                                                <span class="font-bold text-slate-800" x-text="selectedKelompok + ' (' + selectedDesa + ')'"></span>
+                                            </div>
+                                            <template x-if="getPresensiRecord(act.id, selectedDesa, selectedKelompok)">
+                                                <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-200/60">
+                                                    <span class="text-slate-500">Data Tercatat:</span>
+                                                    <span class="font-bold text-emerald-700" x-text="'Hadir: ' + getPresensiRecord(act.id, selectedDesa, selectedKelompok).hadir + ' | Izin: ' + getPresensiRecord(act.id, selectedDesa, selectedKelompok).izin + ' | Alfa: ' + getPresensiRecord(act.id, selectedDesa, selectedKelompok).alfa"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template x-if="!selectedDesa || !selectedKelompok">
+                                        <p class="text-xs text-slate-400 italic">Pilih Desa & Kelompok di atas untuk mengaktifkan pengisian.</p>
+                                    </template>
+                                </div>
                             </div>
-                            <div class="p-5 bg-slate-50/50 mt-auto">
+
+                            <!-- Tombol Aksi -->
+                            <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-100">
                                 <button @click="openPresensiModal(act)" 
                                     :disabled="!selectedDesa || !selectedKelompok"
-                                    class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-medium py-2.5 px-4 rounded-lg text-sm transition shadow-sm flex items-center justify-center gap-2">
-                                    <span x-text="(!selectedDesa || !selectedKelompok) ? 'Pilih Desa & Kelompok Dulu' : 'Isi / Edit Presensi'"></span>
+                                    :class="(!selectedDesa || !selectedKelompok) 
+                                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                                        : (getPresensiRecord(act.id, selectedDesa, selectedKelompok) 
+                                            ? 'bg-emerald-800 hover:bg-emerald-700 text-white shadow-sm' 
+                                            : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm')"
+                                    class="w-full font-bold py-2.5 px-4 rounded-xl text-xs sm:text-sm transition active:scale-[0.99] flex items-center justify-center gap-2">
+                                    <span x-text="(!selectedDesa || !selectedKelompok) 
+                                        ? 'Pilih Desa & Kelompok Dulu' 
+                                        : (getPresensiRecord(act.id, selectedDesa, selectedKelompok) 
+                                            ? 'Edit Presensi ' + selectedKelompok 
+                                            : 'Isi Presensi ' + selectedKelompok)"></span>
                                 </button>
                             </div>
                         </div>
                     </template>
+
                     <template x-if="activities.length === 0">
-                        <div class="col-span-full py-12 text-center text-slate-400 border border-dashed border-slate-300 rounded-xl">
+                        <div class="col-span-full py-12 text-center text-slate-400 bg-white border border-dashed border-slate-300 rounded-2xl">
                             Belum ada kegiatan yang ditambahkan oleh admin.
                         </div>
                     </template>
@@ -142,35 +239,54 @@
 
         <!-- TAB 2: MONITORING -->
         <div x-show="!loading && activeTab === 'monitoring'" class="space-y-6">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h2 class="text-xl font-bold text-slate-900 mb-1">Monitoring Status Kehadiran Kelompok</h2>
-                <p class="text-sm text-slate-500 mb-6">Pantau kelompok yang sudah atau belum mengisi presensi per kegiatan.</p>
+            <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                    <div>
+                        <h2 class="text-lg sm:text-xl font-extrabold text-slate-900">Monitoring Status Kehadiran</h2>
+                        <p class="text-xs sm:text-sm text-slate-500">Pantau kelengkapan laporan presensi setiap kelompok per kegiatan.</p>
+                    </div>
+                    <!-- Filter Kegiatan di Monitoring -->
+                    <select x-model="monitoringFilterActId" class="border border-slate-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold bg-slate-50 focus:ring-2 focus:ring-emerald-600 outline-none">
+                        <option value="all">Tampilkan Semua Kegiatan</option>
+                        <template x-for="act in activities" :key="act.id">
+                            <option :value="act.id" x-text="act.nama + ' (' + act.waktu + ')'"></option>
+                        </template>
+                    </select>
+                </div>
 
-                <div class="space-y-8">
-                    <template x-for="act in activities" :key="act.id">
-                        <div class="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                            <div class="bg-slate-100 px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div class="space-y-6">
+                    <template x-for="act in filteredMonitoringActivities" :key="act.id">
+                        <div class="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-white">
+                            <!-- Header Kartu Kegiatan Monitoring -->
+                            <div class="bg-emerald-950 text-white px-5 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                 <div>
-                                    <h3 class="font-bold text-base text-slate-900" x-text="act.nama"></h3>
-                                    <p class="text-xs text-slate-500" x-text="'Waktu: ' + act.waktu + ' | Tempat: ' + act.tempat"></p>
+                                    <h3 class="font-bold text-base sm:text-lg text-white" x-text="act.nama"></h3>
+                                    <p class="text-xs text-emerald-300 mt-0.5" x-text="act.waktu + ' • ' + act.tempat"></p>
                                 </div>
-                                <span class="bg-emerald-100 text-emerald-800 text-xs font-semibold px-3 py-1 rounded-full" x-text="getFilledCount(act.id) + ' dari ' + getTotalKelompokCount() + ' Kelompok Mengisi'"></span>
+                                <div class="flex items-center gap-2">
+                                    <span class="bg-amber-400 text-emerald-950 text-xs font-extrabold px-3 py-1 rounded-full" 
+                                          x-text="getFilledCount(act.id) + ' / ' + getTotalKelompokCount() + ' Kelompok'"></span>
+                                </div>
                             </div>
                             
-                            <div class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 bg-white">
+                            <!-- Grid Desa & Kelompok -->
+                            <div class="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50/60">
                                 <template x-for="(kelList, desaName) in masterWilayah" :key="desaName">
-                                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                                        <h4 class="font-bold text-sm text-emerald-800 border-b border-slate-200 pb-2 mb-3" x-text="desaName"></h4>
-                                        <ul class="space-y-2 text-xs">
+                                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+                                        <div class="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-3">
+                                            <h4 class="font-extrabold text-sm text-emerald-900" x-text="desaName"></h4>
+                                            <span class="text-[10px] font-bold text-slate-400 uppercase" x-text="kelList.length + ' Klp'"></span>
+                                        </div>
+                                        <ul class="space-y-2 text-xs flex-grow">
                                             <template x-for="kel in kelList" :key="kel">
-                                                <li class="flex items-center justify-between p-2 rounded bg-white border border-slate-200">
-                                                    <span class="font-medium text-slate-700 truncate max-w-[110px]" x-text="kel"></span>
+                                                <li class="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                                    <span class="font-semibold text-slate-700 truncate" x-text="kel" :title="kel"></span>
                                                     <template x-if="getPresensiRecord(act.id, desaName, kel)">
-                                                        <span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-semibold text-[10px]" 
+                                                        <span class="shrink-0 bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold text-[10px]" 
                                                               x-text="'H:' + getPresensiRecord(act.id, desaName, kel).hadir + ' I:' + getPresensiRecord(act.id, desaName, kel).izin + ' A:' + getPresensiRecord(act.id, desaName, kel).alfa"></span>
                                                     </template>
                                                     <template x-if="!getPresensiRecord(act.id, desaName, kel)">
-                                                        <span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-semibold text-[10px]">Belum</span>
+                                                        <span class="shrink-0 bg-rose-100 text-rose-700 px-2 py-0.5 rounded-md font-bold text-[10px]">Belum</span>
                                                     </template>
                                                 </li>
                                             </template>
@@ -186,85 +302,263 @@
 
         <!-- TAB 3: EVALUASI & GRAFIK (ADMIN ONLY) -->
         <div x-show="!loading && activeTab === 'evaluasi' && isAdmin" class="space-y-6">
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h2 class="text-xl font-bold text-slate-900 mb-1">Evaluasi & Statistik Kehadiran</h2>
-                <p class="text-sm text-slate-500 mb-6">Grafik analitik kehadiran, izin, dan alfa secara keseluruhan.</p>
+            <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+                
+                <!-- Header & Kontrol Filter Evaluasi -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+                    <div>
+                        <h2 class="text-lg sm:text-xl font-extrabold text-slate-900">Evaluasi & Rekapitulasi Presensi</h2>
+                        <p class="text-xs sm:text-sm text-slate-500">Analisis total dan persentase kehadiran berdasarkan kegiatan maupun periode bulan.</p>
+                    </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <h3 class="text-sm font-bold text-slate-700 mb-4 text-center">Rekapitulasi Nasional (Hadir vs Izin vs Alfa)</h3>
-                        <div class="relative h-72">
+                    <!-- Mode Switcher & Dropdown Pilihan -->
+                    <div class="flex flex-col sm:flex-row gap-2.5">
+                        <div class="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+                            <button @click="evalMode = 'kegiatan'; $nextTick(() => renderCharts())" 
+                                :class="evalMode === 'kegiatan' ? 'bg-emerald-800 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+                                class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition">
+                                Per Kegiatan
+                            </button>
+                            <button @click="evalMode = 'bulan'; $nextTick(() => renderCharts())" 
+                                :class="evalMode === 'bulan' ? 'bg-emerald-800 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+                                class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition">
+                                Per Bulan
+                            </button>
+                        </div>
+
+                        <!-- Pilihan Kegiatan -->
+                        <template x-if="evalMode === 'kegiatan'">
+                            <select x-model="selectedEvalActivity" @change="renderCharts()" class="border border-slate-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold bg-white focus:ring-2 focus:ring-emerald-600 outline-none">
+                                <option value="all">Semua Kegiatan (Gabungan)</option>
+                                <template x-for="act in activities" :key="act.id">
+                                    <option :value="act.id" x-text="act.nama + ' - ' + act.waktu"></option>
+                                </template>
+                            </select>
+                        </template>
+
+                        <!-- Pilihan Bulan -->
+                        <template x-if="evalMode === 'bulan'">
+                            <select x-model="selectedEvalMonth" @change="renderCharts()" class="border border-slate-300 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold bg-white focus:ring-2 focus:ring-emerald-600 outline-none">
+                                <option value="all">Semua Bulan</option>
+                                <template x-for="m in availableMonths" :key="m">
+                                    <option :value="m" x-text="m"></option>
+                                </template>
+                            </select>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Kartu Statistik Total & Persentase -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-5">
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <p class="text-xs font-semibold text-slate-500">Total Peserta Tercatat</p>
+                        <p class="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-1" x-text="evalStats.total"></p>
+                        <p class="text-[11px] text-slate-400 mt-1">100% Akumulasi</p>
+                    </div>
+                    <div class="bg-emerald-50/80 p-4 rounded-2xl border border-emerald-200">
+                        <div class="flex items-center justify-between">
+                            <p class="text-xs font-bold text-emerald-800">Total Hadir</p>
+                            <span class="text-xs font-extrabold bg-emerald-600 text-white px-2 py-0.5 rounded-full" x-text="evalStats.hadirPct + '%'"></span>
+                        </div>
+                        <p class="text-2xl sm:text-3xl font-extrabold text-emerald-900 mt-1" x-text="evalStats.hadir"></p>
+                        <p class="text-[11px] text-emerald-700 mt-1">Kehadiran aktif</p>
+                    </div>
+                    <div class="bg-amber-50/80 p-4 rounded-2xl border border-amber-200">
+                        <div class="flex items-center justify-between">
+                            <p class="text-xs font-bold text-amber-800">Total Izin</p>
+                            <span class="text-xs font-extrabold bg-amber-500 text-white px-2 py-0.5 rounded-full" x-text="evalStats.izinPct + '%'"></span>
+                        </div>
+                        <p class="text-2xl sm:text-3xl font-extrabold text-amber-900 mt-1" x-text="evalStats.izin"></p>
+                        <p class="text-[11px] text-amber-700 mt-1">Izin terkonfirmasi</p>
+                    </div>
+                    <div class="bg-rose-50/80 p-4 rounded-2xl border border-rose-200">
+                        <div class="flex items-center justify-between">
+                            <p class="text-xs font-bold text-rose-800">Total Alfa</p>
+                            <span class="text-xs font-extrabold bg-rose-600 text-white px-2 py-0.5 rounded-full" x-text="evalStats.alfaPct + '%'"></span>
+                        </div>
+                        <p class="text-2xl sm:text-3xl font-extrabold text-rose-900 mt-1" x-text="evalStats.alfa"></p>
+                        <p class="text-[11px] text-rose-700 mt-1">Tanpa keterangan</p>
+                    </div>
+                </div>
+
+                <!-- Grafik Visual -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                        <h3 class="text-sm font-extrabold text-slate-800 mb-4 text-center">Proporsi Persentase Kehadiran</h3>
+                        <div class="relative h-64 sm:h-72">
                             <canvas id="attendanceChart"></canvas>
                         </div>
                     </div>
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <h3 class="text-sm font-bold text-slate-700 mb-4 text-center">Tingkat Pengisian Presensi per Desa</h3>
-                        <div class="relative h-72">
+                    <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                        <h3 class="text-sm font-extrabold text-slate-800 mb-4 text-center">Perbandingan Hadir, Izin & Alfa per Desa</h3>
+                        <div class="relative h-64 sm:h-72">
                             <canvas id="desaChart"></canvas>
                         </div>
                     </div>
                 </div>
+
+                <!-- Tabel Rekapitulasi Detail -->
+                <div class="border border-slate-200 rounded-2xl overflow-hidden">
+                    <div class="bg-slate-100 px-5 py-3.5 border-b border-slate-200">
+                        <h3 class="text-sm font-extrabold text-slate-800" x-text="evalMode === 'kegiatan' ? 'Tabel Rekapitulasi per Kegiatan' : 'Tabel Rekapitulasi per Bulan'"></h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                            <thead>
+                                <tr class="bg-emerald-900 text-white uppercase text-[11px] tracking-wider">
+                                    <th class="py-3.5 px-4 font-bold" x-text="evalMode === 'kegiatan' ? 'Nama Kegiatan & Waktu' : 'Bulan / Periode'"></th>
+                                    <th class="py-3.5 px-4 font-bold text-center">Klp Mengisi</th>
+                                    <th class="py-3.5 px-4 font-bold text-center">Hadir</th>
+                                    <th class="py-3.5 px-4 font-bold text-center">Izin</th>
+                                    <th class="py-3.5 px-4 font-bold text-center">Alfa</th>
+                                    <th class="py-3.5 px-4 font-bold text-center">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 bg-white">
+                                <template x-for="row in evalTableRows" :key="row.label">
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="py-3.5 px-4 font-bold text-slate-800" x-text="row.label"></td>
+                                        <td class="py-3.5 px-4 text-center font-medium text-slate-600" x-text="row.kelompokCount"></td>
+                                        <td class="py-3.5 px-4 text-center font-bold text-emerald-700" x-text="row.hadir + ' (' + row.hadirPct + '%)'"></td>
+                                        <td class="py-3.5 px-4 text-center font-bold text-amber-600" x-text="row.izin + ' (' + row.izinPct + '%)'"></td>
+                                        <td class="py-3.5 px-4 text-center font-bold text-rose-600" x-text="row.alfa + ' (' + row.alfaPct + '%)'"></td>
+                                        <td class="py-3.5 px-4 text-center font-extrabold text-slate-900" x-text="row.total"></td>
+                                    </tr>
+                                </template>
+                                <template x-if="evalTableRows.length === 0">
+                                    <tr>
+                                        <td colspan="6" class="py-8 text-center text-slate-400">Belum ada data rekapitulasi.</td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
             </div>
         </div>
 
     </main>
 
+    <!-- BOTTOM NAVIGATION BAR (KHUSUS MOBILE SEPERTI APLIKASI NATIVE) -->
+    <nav class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-[0_-4px_15px_rgba(0,0,0,0.05)]">
+        <div class="grid h-16" :class="isAdmin ? 'grid-cols-3' : 'grid-cols-2'">
+            <button @click="activeTab = 'beranda'" 
+                :class="activeTab === 'beranda' ? 'text-emerald-800 font-extrabold' : 'text-slate-400 font-medium'"
+                class="flex flex-col items-center justify-center gap-1 transition active:scale-95">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                </svg>
+                <span class="text-[11px]">Presensi</span>
+            </button>
+
+            <button @click="activeTab = 'monitoring'" 
+                :class="activeTab === 'monitoring' ? 'text-emerald-800 font-extrabold' : 'text-slate-400 font-medium'"
+                class="flex flex-col items-center justify-center gap-1 transition active:scale-95">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                <span class="text-[11px]">Monitoring</span>
+            </button>
+
+            <template x-if="isAdmin">
+                <button @click="switchToEvaluasi()" 
+                    :class="activeTab === 'evaluasi' ? 'text-emerald-800 font-extrabold' : 'text-slate-400 font-medium'"
+                    class="flex flex-col items-center justify-center gap-1 transition active:scale-95">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                    </svg>
+                    <span class="text-[11px]">Evaluasi</span>
+                </button>
+            </template>
+        </div>
+    </nav>
+
     <!-- MODAL: LOGIN ADMIN -->
-    <div x-show="showLoginModal" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-        <div @click.away="showLoginModal = false" class="bg-white rounded-2xl shadow-xl max-w-sm w-full overflow-hidden p-6 space-y-4">
+    <div x-show="showLoginModal" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div @click.away="showLoginModal = false" class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden p-6 space-y-4">
             <div class="flex justify-between items-center">
-                <h3 class="font-bold text-lg text-slate-900">Autentikasi Admin</h3>
-                <button @click="showLoginModal = false" class="text-slate-400 hover:text-slate-600">&times;</button>
+                <h3 class="font-extrabold text-lg text-slate-900">Autentikasi Admin</h3>
+                <button @click="showLoginModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
             </div>
+            <p class="text-xs text-slate-500">Masukkan password admin untuk mengelola kegiatan dan melihat evaluasi.</p>
             <form @submit.prevent="submitAdminLogin()" class="space-y-4">
-                <input type="password" x-model="adminPasswordInput" placeholder="Password Admin" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none" required>
+                <input type="password" x-model="adminPasswordInput" placeholder="Password Admin..." class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-600 outline-none" required>
                 <div class="flex justify-end gap-2">
-                    <button type="button" @click="showLoginModal = false" class="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm">Batal</button>
-                    <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium shadow">Masuk</button>
+                    <button type="button" @click="showLoginModal = false" class="px-4 py-2.5 border border-slate-300 text-slate-700 rounded-xl text-xs font-bold">Batal</button>
+                    <button type="submit" class="px-5 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow">Masuk</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- MODAL: TAMBAH KEGIATAN -->
-    <div x-show="showAddModal" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-        <div @click.away="showAddModal = false" class="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden p-6 space-y-4">
-            <h3 class="font-bold text-lg text-slate-900">Tambah Kegiatan Baru</h3>
+    <!-- MODAL: TAMBAH KEGIATAN (OTOMATIS NAMA HARI DARI TANGGAL) -->
+    <div x-show="showAddModal" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div @click.away="showAddModal = false" class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden p-6 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="font-extrabold text-lg text-slate-900">Tambah Kegiatan Baru</h3>
+                <button @click="showAddModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
             <form @submit.prevent="saveNewActivity()" class="space-y-4">
-                <input type="text" x-model="formActivity.nama" placeholder="Nama Kegiatan" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" required>
-                <input type="text" x-model="formActivity.waktu" placeholder="Waktu (Cth: 20 Juni 2026)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" required>
-                <input type="text" x-model="formActivity.tempat" placeholder="Tempat / Lokasi" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" required>
-                <div class="flex justify-end gap-2">
-                    <button type="button" @click="showAddModal = false" class="px-4 py-2 border text-slate-700 rounded-lg text-sm">Batal</button>
-                    <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium">Simpan</button>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Kegiatan</label>
+                    <input type="text" x-model="formActivity.nama" placeholder="Contoh: Pengajian Daerah KMM" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-emerald-600 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Pilih Tanggal Kegiatan</label>
+                    <input type="date" x-model="formActivity.tanggalRaw" @change="updateFormattedDate()" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-emerald-600 outline-none" required>
+                    <template x-if="formActivity.waktu">
+                        <p class="text-xs font-bold text-emerald-700 mt-1.5 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
+                            Otomatis Terbaca: <span x-text="formActivity.waktu"></span>
+                        </p>
+                    </template>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Tempat / Lokasi</label>
+                    <input type="text" x-model="formActivity.tempat" placeholder="Contoh: Masjid Agung / Zoom Meeting" class="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-emerald-600 outline-none" required>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" @click="showAddModal = false" class="px-4 py-2.5 border border-slate-300 text-slate-700 rounded-xl text-xs font-bold">Batal</button>
+                    <button type="submit" :disabled="submitting" class="px-5 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow disabled:opacity-50">
+                        <span x-text="submitting ? 'Menyimpan...' : 'Simpan Kegiatan'"></span>
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- MODAL: PRESENSI -->
-    <div x-show="showPresensiModal" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-        <div @click.away="showPresensiModal = false" class="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden p-6 space-y-4">
-            <h3 class="font-bold text-lg text-slate-900">Input Presensi Kelompok</h3>
-            <p class="text-xs text-emerald-700 font-semibold" x-text="selectedDesa + ' - ' + selectedKelompok"></p>
+    <!-- MODAL: PRESENSI (ISIAN KOSONGAN TANPA NOL BAWAAN) -->
+    <div x-show="showPresensiModal" style="display: none;" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div @click.away="showPresensiModal = false" class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden p-6 space-y-4">
+            <div>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200" x-text="selectedActivity?.nama"></span>
+                <h3 class="font-extrabold text-lg text-slate-900 mt-1.5">Input Presensi Kelompok</h3>
+                <p class="text-xs font-bold text-emerald-800 mt-0.5" x-text="'Desa ' + selectedDesa + ' — Kelompok ' + selectedKelompok"></p>
+            </div>
+
             <form @submit.prevent="submitPresensiData()" class="space-y-4">
                 <div class="grid grid-cols-3 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-emerald-700 mb-1">Hadir</label>
-                        <input type="number" min="0" x-model.number="formPresensi.hadir" class="w-full border rounded-lg p-2 text-center font-bold text-emerald-600" required>
+                    <div class="bg-emerald-50/60 p-3 rounded-xl border border-emerald-200">
+                        <label class="block text-xs font-bold text-emerald-800 mb-1.5 text-center">Hadir</label>
+                        <input type="number" min="0" inputmode="numeric" placeholder="0" x-model="formPresensi.hadir" class="w-full border border-emerald-300 bg-white rounded-lg p-2.5 text-center font-extrabold text-lg text-emerald-700 focus:ring-2 focus:ring-emerald-600 outline-none">
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-amber-700 mb-1">Izin</label>
-                        <input type="number" min="0" x-model.number="formPresensi.izin" class="w-full border rounded-lg p-2 text-center font-bold text-amber-600" required>
+                    <div class="bg-amber-50/60 p-3 rounded-xl border border-amber-200">
+                        <label class="block text-xs font-bold text-amber-800 mb-1.5 text-center">Izin</label>
+                        <input type="number" min="0" inputmode="numeric" placeholder="0" x-model="formPresensi.izin" class="w-full border border-amber-300 bg-white rounded-lg p-2.5 text-center font-extrabold text-lg text-amber-700 focus:ring-2 focus:ring-amber-500 outline-none">
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-rose-700 mb-1">Alfa</label>
-                        <input type="number" min="0" x-model.number="formPresensi.alfa" class="w-full border rounded-lg p-2 text-center font-bold text-rose-600" required>
+                    <div class="bg-rose-50/60 p-3 rounded-xl border border-rose-200">
+                        <label class="block text-xs font-bold text-rose-800 mb-1.5 text-center">Alfa</label>
+                        <input type="number" min="0" inputmode="numeric" placeholder="0" x-model="formPresensi.alfa" class="w-full border border-rose-300 bg-white rounded-lg p-2.5 text-center font-extrabold text-lg text-rose-700 focus:ring-2 focus:ring-rose-500 outline-none">
                     </div>
                 </div>
-                <div class="flex justify-end gap-2">
-                    <button type="button" @click="showPresensiModal = false" class="px-4 py-2 border text-slate-700 rounded-lg text-sm">Batal</button>
-                    <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium">Kirim</button>
+                <p class="text-[11px] text-slate-400 text-center">Biarkan kosong jika jumlahnya 0 (nol).</p>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" @click="showPresensiModal = false" class="px-4 py-2.5 border border-slate-300 text-slate-700 rounded-xl text-xs font-bold">Batal</button>
+                    <button type="submit" :disabled="submitting" class="px-5 py-2.5 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow disabled:opacity-50">
+                        <span x-text="submitting ? 'Menyimpan...' : 'Simpan Presensi'"></span>
+                    </button>
                 </div>
             </form>
         </div>
